@@ -9,11 +9,21 @@ from typing import List
 from sqlmodel import select
 from .db import init_db, get_session
 from .models import Category, Account, Transaction, Budget, PlannedItem, Attachment
-from .utils import generate_bar_chart
+from .utils import generate_bar_chart, generate_line_chart, generate_pie_chart
 from datetime import datetime
 import json
 import re
 import os
+from .schemas import (
+    CategoryCreate, CategoryResponse,
+    AccountCreate, AccountResponse,
+    TransactionCreate, TransactionResponse,
+    BudgetCreate, BudgetResponse,
+    PlannedItemCreate, PlannedItemResponse,
+    TransferRequest, TransferResponse,
+    AIReportRequest, AIReportResponse, ChartInfo,
+    HealthResponse
+)
 
 UPLOAD_DIR = Path(__file__).resolve().parent / "uploads"
 UPLOAD_DIR.mkdir(parents=True, exist_ok=True)
@@ -34,7 +44,7 @@ def on_startup():
     init_db()
 
 
-@app.get("/api/health")
+@app.get("/api/health", response_model=HealthResponse)
 def health():
     return {"status": "ok"}
 
@@ -59,80 +69,85 @@ def serve_upload(name: str):
     return FileResponse(p)
 
 
-@app.post("/api/categories")
-def create_category(cat: Category):
+@app.post("/api/categories", response_model=CategoryResponse)
+def create_category(cat: CategoryCreate):
+    c = Category(**cat.dict())
     with get_session() as s:
-        s.add(cat)
+        s.add(c)
         s.commit()
-        s.refresh(cat)
-    return cat
+        s.refresh(c)
+    return c
 
 
-@app.get("/api/categories")
+@app.get("/api/categories", response_model=List[CategoryResponse])
 def list_categories():
     with get_session() as s:
         cats = s.exec(select(Category)).all()
     return cats
 
 
-@app.post("/api/accounts")
-def create_account(acc: Account):
+@app.post("/api/accounts", response_model=AccountResponse)
+def create_account(acc: AccountCreate):
+    a = Account(**acc.dict())
     with get_session() as s:
-        s.add(acc)
+        s.add(a)
         s.commit()
-        s.refresh(acc)
-    return acc
+        s.refresh(a)
+    return a
 
 
-@app.get("/api/accounts")
+@app.get("/api/accounts", response_model=List[AccountResponse])
 def list_accounts():
     with get_session() as s:
         accs = s.exec(select(Account)).all()
     return accs
 
 
-@app.post("/api/transactions")
-def create_transaction(tx: Transaction):
+@app.post("/api/transactions", response_model=TransactionResponse)
+def create_transaction(tx: TransactionCreate):
+    t = Transaction(**tx.dict())
     with get_session() as s:
-        s.add(tx)
+        s.add(t)
         s.commit()
-        s.refresh(tx)
-    return tx
+        s.refresh(t)
+    return t
 
 
-@app.get("/api/transactions")
+@app.get("/api/transactions", response_model=List[TransactionResponse])
 def list_transactions():
     with get_session() as s:
         txs = s.exec(select(Transaction).order_by(Transaction.timestamp.desc())).all()
     return txs
 
 
-@app.post("/api/budgets")
-def create_budget(b: Budget):
+@app.post("/api/budgets", response_model=BudgetResponse)
+def create_budget(b: BudgetCreate):
+    budget = Budget(**b.dict())
     with get_session() as s:
-        s.add(b)
+        s.add(budget)
         s.commit()
-        s.refresh(b)
-    return b
+        s.refresh(budget)
+    return budget
 
 
-@app.get("/api/budgets")
+@app.get("/api/budgets", response_model=List[BudgetResponse])
 def list_budgets():
     with get_session() as s:
         bs = s.exec(select(Budget)).all()
     return bs
 
 
-@app.post("/api/planned")
-def create_planned(p: PlannedItem):
+@app.post("/api/planned", response_model=PlannedItemResponse)
+def create_planned(p: PlannedItemCreate):
+    item = PlannedItem(**p.dict())
     with get_session() as s:
-        s.add(p)
+        s.add(item)
         s.commit()
-        s.refresh(p)
-    return p
+        s.refresh(item)
+    return item
 
 
-@app.get("/api/planned")
+@app.get("/api/planned", response_model=List[PlannedItemResponse])
 def list_planned():
     with get_session() as s:
         ps = s.exec(select(PlannedItem)).all()
@@ -223,8 +238,8 @@ def _extract_json_from_text(s: str):
     return None
 
 
-@app.post("/api/ai/chat")
-def ai_chat(request: dict):
+@app.post("/api/ai/chat", response_model=AIReportResponse)
+def ai_chat(request: AIReportRequest):
     """Interactive AI-driven report generation.
     Expected body: {"prompt": "user text describing required report"}
 
@@ -333,15 +348,7 @@ def ai_chat(request: dict):
     return {"text": parsed.get("text", ""), "charts": results}
 
 
-class TransferRequest(BaseModel):
-    from_account_id: int
-    to_account_id: int
-    amount: float
-    currency: Optional[str] = "USD"
-    description: Optional[str] = None
-
-
-@app.post("/api/transfer")
+@app.post("/api/transfer", response_model=TransferResponse)
 def transfer(req: TransferRequest):
     """Transfer amount between accounts. Creates two transactions and updates balances."""
     if req.amount <= 0:
