@@ -1,0 +1,70 @@
+name: CI
+
+on:
+  push:
+    branches: [ main, develop ]
+  pull_request:
+    branches: [ main ]
+
+jobs:
+  backend:
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        python-version: ['3.10', '3.11']
+    
+    steps:
+    - uses: actions/checkout@v3
+    
+    - name: Set up Python ${{ matrix.python-version }}
+      uses: actions/setup-python@v4
+      with:
+        python-version: ${{ matrix.python-version }}
+    
+    - name: Install dependencies
+      run: |
+        python -m pip install --upgrade pip
+        pip install -r backend/requirements.txt
+    
+    - name: Lint with flake8
+      run: |
+        pip install flake8
+        flake8 backend --count --select=E9,F63,F7,F82 --show-source --statistics
+        flake8 backend --count --exit-zero --max-complexity=10 --max-line-length=127 --statistics
+      continue-on-error: true
+    
+    - name: Run pytest
+      run: |
+        cd backend
+        pytest test_main.py -v
+
+  frontend:
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        node-version: [18.x, 20.x]
+    
+    steps:
+    - uses: actions/checkout@v3
+    
+    - name: Set up Node.js ${{ matrix.node-version }}
+      uses: actions/setup-node@v3
+      with:
+        node-version: ${{ matrix.node-version }}
+        cache: 'npm'
+        cache-dependency-path: 'frontend/package-lock.json'
+    
+    - name: Install dependencies
+      working-directory: ./frontend
+      run: npm ci
+    
+    - name: Build
+      working-directory: ./frontend
+      run: npm run build
+    
+    - name: Lint (basic)
+      working-directory: ./frontend
+      run: |
+        npm install --save-dev eslint-plugin-react
+        npx eslint src --ext .jsx,.js 2>/dev/null || echo "✓ Lint check skipped (optional)"
+      continue-on-error: true

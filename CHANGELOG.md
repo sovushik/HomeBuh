@@ -11,6 +11,8 @@
 - Добавлены Pydantic схемы (`.schemas`) для всех моделей: CategoryCreate/Response, AccountCreate/Response, TransactionCreate/Response и т.д.
 - Обновлены все эндпоинты API с `response_model` для валидации входных/выходных данных и автоматической документации Swagger/OpenAPI.
 - Рефактор frontend: разделены компоненты на отдельные страницы (`pages/`): Categories, Budgets, Accounts, Transfers, Reports. Добавлена навигация по вкладкам и улучшена UX.
+- Добавлены unit тесты backend (pytest): тестирование CRUD операций, валидация переводов между счетами, AI-отчеты и health-check.
+- Обновлен CI workflow: добавлен шаг для запуска pytest при каждом push.
 
 ## [0.1.0] - 2025-12-07
 

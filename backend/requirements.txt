@@ -7,3 +7,5 @@ matplotlib==3.8.2
 pillow==10.1.0
 python-dotenv==1.0.0
 requests==2.33.2
+pytest==7.4.3
+httpx==0.25.2
